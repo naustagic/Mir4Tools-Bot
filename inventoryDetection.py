@@ -10,12 +10,13 @@ import json
 
 allowedChannels = [1128338314877997177, 1129154483268632636]
 
-PlayerInventory = {}
 GLOBAL_SCALE = 1.42
 leftTopPadding = 30
 bottomRightPadding = 62
 
 async def handleImageDetection(message: str, clientId: int, avatar: discord.Asset):
+    PlayerInventory = {}
+
     if message.author == clientId:
         return
 
@@ -47,7 +48,7 @@ async def handleImageDetection(message: str, clientId: int, avatar: discord.Asse
             trade = cv2.imread(os.path.join(os.path.dirname(__file__),"./items/trade.png"), cv2.IMREAD_UNCHANGED)
 
             for item in utils.items:
-                itemTemplate = cv2.imread(os.path.join(os.path.dirname(__file__), f"./items/{item}.png"), cv2.IMREAD_UNCHANGED)
+                itemTemplate = cv2.imread(os.path.join(os.path.dirname(__file__), f"./items/{item}.webp"), cv2.IMREAD_UNCHANGED)
                 itemTemplate = itemTemplate[leftTopPadding:bottomRightPadding, leftTopPadding:bottomRightPadding]
                 itemTemplate = imutils.resize(
                     itemTemplate, width=int(itemTemplate.shape[1] * GLOBAL_SCALE)
@@ -58,6 +59,9 @@ async def handleImageDetection(message: str, clientId: int, avatar: discord.Asse
 
             finalImages.append(inventoryImage)
         
+        if (len(PlayerInventory) == 0):
+            raise Exception("No items detected")
+
         title = translation["'s inventory matching result"]
         embed = discord.Embed(title=f"{message.author.global_name}{title}", color=0x2C2542, type="rich", description=translation["Recently added feature - please be patient as this is a new feature which still being worked on. If you have any trouble, please report issues to the Mir4Tools administrators."])
         embed.set_thumbnail(url=avatar)
@@ -65,11 +69,19 @@ async def handleImageDetection(message: str, clientId: int, avatar: discord.Asse
         _, buffer = cv2.imencode(".png", utils.vconcat_resize(finalImages))
         io_buf = io.BytesIO(buffer)
         finalResult = discord.File(io_buf, filename="mir4-inventory-matching.png")
+
+        inventoryJSON = json.dumps(PlayerInventory, indent=2)
+        jsonIO = io.StringIO(inventoryJSON)
+        inventoryFile = discord.File(jsonIO, filename="inventory.json")
         
-        await message.reply(embed=embed, files=[finalResult, discord.File(io.StringIO(json.dumps(PlayerInventory, indent=2)), filename="inventory.json")])
+        await message.reply(embed=embed, files=[finalResult, inventoryFile])
         await message.clear_reaction("🕓")
         await message.add_reaction("✅")
     except Exception as error:
         print(error)
         await message.clear_reaction("🕓")
         await message.add_reaction("❌")
+
+        embed = discord.Embed(title=translation["Something went wrong"], color=0x2C2542, type="rich", description=translation["Something went wrong with the image detection proccess, read the instruction and recommendations of use of the bot for help.\n\n https://discord.com/channels/1127618095687671909/1128338314877997177/1129162903539421284"])
+        embed.set_thumbnail(url=avatar)
+        await message.reply(embed=embed)

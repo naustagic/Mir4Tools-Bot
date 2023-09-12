@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import pytesseract
 
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 GLOBAL_SCALE = 1.42
 threshold = 0.85
 frameOffset = int(np.round(33 * GLOBAL_SCALE))
@@ -33,7 +35,7 @@ def addAlphaChannels(image):
 
 
 def checkItemRarity(top, bottom, left, right, originalImage, inventoryImage):
-    colorFrame = originalImage.copy()[top + 20 : bottom, left : right + 5]
+    colorFrame = originalImage.copy()[top + 20 : bottom, left : right + 10]
     rarity = None
 
     if np.any(np.all(colorFrame == (13, 210, 237, 255), axis=-1)):
@@ -46,6 +48,9 @@ def checkItemRarity(top, bottom, left, right, originalImage, inventoryImage):
         rarity = "Uncommon"
     elif np.any(np.all(colorFrame == (122, 120, 117, 255), axis=-1)):
         rarity = "Common"
+
+    if rarity == None:
+        raise Exception("Rarity not detected")
 
     cv2.putText(
         inventoryImage,
@@ -69,20 +74,34 @@ def checkItemAmount(
     matchedValue = originalImage[top:bottom, left:right]
     matchedValue[np.all(matchedValue <= (200, 200, 200, 255), axis=-1)] = (0, 0, 0, 255)
 
-
-    # Epic item tweak
+    ###
+    # Specific tweak's
+    ###
     if rarity == "Epic":
         EpicMin = np.array([0, 0, 0, 255], np.uint8)
         EpicMax = np.array([120, 200, 255, 255], np.uint8)
         matchedValue[cv2.inRange(matchedValue, EpicMin, EpicMax) > 0] = [0, 0, 0, 255]
 
-    # Exorcism bauble tweak
+    if item == "anima_stone":
+        OrangeMin = np.array([45, 96, 200, 255], np.uint8)
+        OrangeMax = np.array([100, 171, 245, 255], np.uint8)
+        matchedValue[cv2.inRange(matchedValue, OrangeMin, OrangeMax) > 0] = [0, 0, 0, 255]
+
     if item == "exorcism_bauble":
         GreenMin = np.array([94, 200, 120, 255], np.uint8)
         GreenMax = np.array([167, 251, 167, 255], np.uint8)
         matchedValue[cv2.inRange(matchedValue, GreenMin, GreenMax) > 0] = [0, 0, 0, 255]
 
-    # Quintessence light pixels tweak
+    if item == "illuminating_fragment":
+        GreenMin = np.array([195, 186, 143, 255], np.uint8)
+        GreenMax = np.array([241, 224, 197, 255], np.uint8)
+        matchedValue[cv2.inRange(matchedValue, GreenMin, GreenMax) > 0] = [0, 0, 0, 255]
+
+    if item == "virtue_pill":
+        ColorMin = np.array([50, 144, 170, 255], np.uint8)
+        ColorMax = np.array([210, 239, 235, 255], np.uint8)
+        matchedValue[cv2.inRange(matchedValue, ColorMin, ColorMax) > 0] = [0, 0, 0, 255]
+
     if item == "quintessence":
         GreenMin = np.array([140, 127, 120, 255], np.uint8)
         GreenMax = np.array([250, 250, 209, 255], np.uint8)
@@ -122,8 +141,7 @@ def searchItem(
 
     w = template.shape[1]
     h = template.shape[0]
-    localThreshold = 0.95 if item == "blue_devil_stone" else threshold
-
+    localThreshold = getThreshold(item)
     yloc, xloc = np.where(result >= localThreshold)
 
     rectangles = []
@@ -217,23 +235,34 @@ def findTraddables(image, top, left, tradeIcon, inventoryImage):
 
     return len(yloc) > 0
 
+def getThreshold(item: str):
+    if item == "blue_devil_stone" or item == "virtue_pill" or item == "century_fruit":
+        return 0.95
+    elif item == "flower_oil":
+        return 0.7
+    elif item == "reishi":
+        return 0.6
+    else:
+        return threshold
+
 items = [
     "anima_stone",
     "blue_devil_stone",
-    # "copper",
-    # "dark_steel",
-    # "dragon_leather",
-    # "energy",
+    "century_fruit",
     "evil_minded_orb",
     "exorcism_bauble",
-    "glittering_powder",
+    "flower_oil",
+    # "herb_leaf",
+    # "herb_root",
     "illuminating_fragment",
     "moon_shadow_stone",
+    "moonlight_magic_stone",
     "platinum",
+    "purified_water",
     "quintessence",
+    "reishi",
+    "snow_panax",
     "steel",
-    # "dragon_eye",
-    # "dragon_scale",
-    # "dragon_claw",
-    # "dragon_horn",
+    # "unihorn_slice",
+    "virtue_pill"
 ]
