@@ -71,7 +71,7 @@ def checkItemAmount(
     top, bottom, left, right, originalImage, inventoryImage, item, rarity
 ):
     matchedValue = originalImage.copy()
-    matchedValue = originalImage[top:bottom, left:right]
+    matchedValue = originalImage[top - 1:bottom, left:right]
     matchedValue[np.all(matchedValue <= (200, 200, 200, 255), axis=-1)] = (0, 0, 0, 255)
 
     ###
@@ -99,13 +99,18 @@ def checkItemAmount(
 
     if item == "virtue_pill":
         ColorMin = np.array([50, 144, 170, 255], np.uint8)
-        ColorMax = np.array([210, 239, 235, 255], np.uint8)
+        ColorMax = np.array([214, 239, 246, 255], np.uint8)
         matchedValue[cv2.inRange(matchedValue, ColorMin, ColorMax) > 0] = [0, 0, 0, 255]
 
     if item == "quintessence":
         GreenMin = np.array([140, 127, 120, 255], np.uint8)
         GreenMax = np.array([250, 250, 209, 255], np.uint8)
         matchedValue[cv2.inRange(matchedValue, GreenMin, GreenMax) > 0] = [0, 0, 0, 255]
+
+    if item == "purified_water":
+        RedMin = np.array([76, 98, 200, 255], np.uint8)
+        RedMax = np.array([123, 151, 255, 255], np.uint8)
+        matchedValue[cv2.inRange(matchedValue, RedMin, RedMax) > 0] = [0, 0, 0, 255]
 
     denoise = cv2.fastNlMeansDenoisingColored(matchedValue, None, 44, 10, 4, 21)
     blur = cv2.GaussianBlur(denoise, (1, 1), 0)
@@ -164,6 +169,9 @@ def searchItem(
         rectangles.append([int(left), int(top), int(right), int(bottom)])
         rectangles.append([int(left), int(top), int(right), int(bottom)])
 
+    rectangles, _ = cv2.groupRectangles(rectangles, 1, 0.15)
+
+    for left, top, right, bottom in rectangles:
         cv2.rectangle(
             inventoryImage,
             (left, top),
@@ -171,10 +179,6 @@ def searchItem(
             (101, 62, 71, 255),
             2,
         )
-
-    rectangles, _ = cv2.groupRectangles(rectangles, 1, 0.2)
-
-    for left, top, right, bottom in rectangles:
         frame = originalImage.copy()
         frame = frame[top:bottom, left:right]
 
